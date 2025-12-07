@@ -106,8 +106,9 @@ def write_log(entry):
     current_directory = os.path.dirname(os.path.abspath(__file__))
     logs_path = current_directory + "/logs"
     log_file_path = os.path.join( logs_path, "activity_log.json" )
-    with open( log_file_path, "a") as log_file:
-        json.dump(entry, log_file)
-        log_file.write("\n")
-
+    with open( log_file_path, "r+") as log_file:
+        data = json.load( log_file )
+        data.append( entry )
+    with open( log_file_path, "w") as log_file:
+        json.dump(data, log_file, indent=2)
 track_active_windows()
