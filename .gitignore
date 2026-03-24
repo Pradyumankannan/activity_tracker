@@ -1,5 +1,10 @@
-logs/labeled_data/*
+__pycache__/
+*/__pycache__/
+*.py[cod]
+
 logs/activity_log.db
+logs/labeled_data/
+
 ML/app_category_model.pkl
-ML/__pycache__/*
-__pycache__
+
+.ipynb_checkpoints/
