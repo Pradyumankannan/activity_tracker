@@ -1,3 +1,5 @@
 logs/labeled_data/*
 logs/activity_log.db
 ML/app_category_model.pkl
+ML/__pycache__/*
+__pycache__
