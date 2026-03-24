@@ -123,7 +123,7 @@ def track_active_windows():
                         "title": last_title,
                         "start": last_start_time.isoformat(),
                         "end": now.isoformat(),
-                        "duration_seconds": (now - last_start_time).seconds,
+                        "duration_seconds": (now - last_start_time).total_seconds(),
                         "idle_time": idle_time
                     }
                 write_log(entry)

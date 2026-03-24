@@ -1,15 +1,19 @@
 import sqlite3
 import datetime
 import numpy as np
-import matplotlib.pyplot as plt
 import pandas as pd
 from pathlib import Path
-
-from ML.predict import predict_category
+import sys
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 LOGS_DIR = PROJECT_ROOT / "logs"
 DB_PATH = LOGS_DIR / "activity_log.db"
+
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from ML.predict import predict_category
+from reports.plotHelper import plotIdleVsActive, plotting, plotTopApps
 
 def initialize_database():
     conn = sqlite3.connect(DB_PATH)
@@ -87,57 +91,17 @@ def addPredictedLabels(df):
     )
     return df
 
-# plotting
-def plotting(df):
-    if df.empty:
-        print("No data to plot")
-        return
-
-    plot_df = df.copy()
-    plot_df["duration_seconds"] = pd.to_numeric(
-        plot_df["duration_seconds"], errors="coerce"
-    ).fillna(0)
-
-    summary = (
-        plot_df.groupby("predicted_category")["duration_seconds"]
-        .sum()
-        .sort_values(ascending=False)
-    )
-
-    if summary.empty:
-        print("No category data to plot")
-        return
-
-    minutes = summary / 60
-
-    plt.style.use("ggplot")
-    fig, ax = plt.subplots(figsize=(10, 6))
-    bars = ax.bar(minutes.index, minutes.values, color="steelblue", edgecolor="black")
-
-    ax.set_title("Time Spent by Predicted Category", fontsize=16, fontweight="bold")
-    ax.set_xlabel("Category", fontsize=12)
-    ax.set_ylabel("Time (minutes)", fontsize=12)
-    ax.tick_params(axis="x", rotation=25)
-    ax.grid(axis="y", linestyle="--", alpha=0.4)
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
-
-    for bar in bars:
-        height = bar.get_height()
-        ax.text(
-            bar.get_x() + bar.get_width() / 2,
-            height,
-            f"{height:.1f}",
-            ha="center",
-            va="bottom",
-            fontsize=10,
-        )
-
-    plt.tight_layout()
-    plt.show()
+# Get average duration of sessions for each category
+def avgSession(df):
+    df["duration_seconds"] = pd.to_numeric(df["duration_seconds"], errors="coerce").fillna(0)
+    avg_duration = df.groupby("predicted_category")["duration_seconds"].mean() / 60
+    avg_duration = avg_duration.sort_values(ascending=False)
+    return avg_duration
 
 rows = getRowsForDay("2026-03-24")
 df = rowsToPandas(rows)
 df = addPredictedLabels(df)
-plotting(df)
 
+plotting(df)
+plotTopApps(df)
+print(avgSession(df))
