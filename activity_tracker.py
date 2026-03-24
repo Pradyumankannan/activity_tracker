@@ -4,12 +4,58 @@ import psutil
 from time import sleep
 import json 
 from datetime import datetime
-import os
+import sqlite3
 import ctypes
 import ctypes.wintypes
+from pathlib import Path
+
+from ML.predict import predict_category
 
 FULLSCREEN_THRESHOLD = 20  # seconds
 NORMAL_THRESHOLD = 10  # seconds
+PROJECT_ROOT = Path(__file__).resolve().parent
+LOGS_DIR = PROJECT_ROOT / "logs"
+DB_PATH = LOGS_DIR / "activity_log.db"
+
+def get_connection():
+    LOGS_DIR.mkdir(parents=True, exist_ok=True)
+    return sqlite3.connect(DB_PATH)
+
+
+def initialize_database():
+    with get_connection() as conn:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS activity_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                app TEXT NOT NULL,
+                title TEXT NOT NULL,
+                start TEXT NOT NULL,
+                end TEXT NOT NULL,
+                duration_seconds REAL NOT NULL,
+                idle_time REAL NOT NULL
+            )
+            """
+        )
+        conn.commit()
+
+def insert_log_entry(entry):
+    with get_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO activity_log (app, title, start, end, duration_seconds, idle_time)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                entry["app"],
+                entry["title"],
+                entry["start"],
+                entry["end"],
+                entry["duration_seconds"],
+                entry["idle_time"],
+            ),
+        )
+        conn.commit()
 
 def get_idle_time():
     """Returns idle time in seconds on Windows."""
@@ -71,14 +117,13 @@ def track_active_windows():
 
             if app != last_app or title != last_title:
                 now = datetime.now()
-                print( idle_seconds )
                 if last_app is not None:
                     entry = {
                         "app": last_app,
                         "title": last_title,
                         "start": last_start_time.isoformat(),
                         "end": now.isoformat(),
-                        "duration_seconds": (now - last_start_time).seconds - idle_time,
+                        "duration_seconds": (now - last_start_time).seconds,
                         "idle_time": idle_time
                     }
                 write_log(entry)
@@ -103,12 +148,19 @@ def track_active_windows():
         print("\nTracker stopped.")
 
 def write_log(entry):
-    current_directory = os.path.dirname(os.path.abspath(__file__))
-    logs_path = current_directory + "/logs"
-    log_file_path = os.path.join( logs_path, "activity_log.json" )
-    with open( log_file_path, "r+") as log_file:
-        data = json.load( log_file )
-        data.append( entry )
-    with open( log_file_path, "w") as log_file:
-        json.dump(data, log_file, indent=2)
+    insert_log_entry(entry)
+    print("LOGGED:", entry)
+    print(
+        predict_category(
+            entry["app"],
+            entry["title"],
+            duration_seconds=entry.get("duration_seconds", 0),
+            idle_time_seconds=entry.get("idle_time", 0),
+            start=entry.get("start"),
+        )
+    )
+    
+
+
+initialize_database()
 track_active_windows()

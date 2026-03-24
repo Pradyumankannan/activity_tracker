@@ -1,0 +1,5 @@
+numpy
+pandas
+psutil
+pywin32
+scikit-learn
