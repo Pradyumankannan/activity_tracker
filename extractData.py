@@ -1,14 +1,10 @@
 import pandas as pd
 import json 
-import sqlite3
-from pathlib import Path
 
+from dbHelper import DB_PATH, LOGS_DIR, get_connection
 from ML.predict import predict_category
 
-PROJECT_ROOT = Path(__file__).resolve().parent
-LOGS_DIR = PROJECT_ROOT / "logs"
 LABELED_DATA_DIR = LOGS_DIR / "labeled_data"
-DB_PATH = LOGS_DIR / "activity_log.db"
 
 
 def load_log_dataframe(db_path):
@@ -16,7 +12,7 @@ def load_log_dataframe(db_path):
         return pd.DataFrame()
 
     try:
-        with sqlite3.connect(db_path) as conn:
+        with get_connection() as conn:
             return pd.read_sql_query(
                 """
                 SELECT app, title, start, end, duration_seconds, idle_time

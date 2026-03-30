@@ -4,40 +4,14 @@ import psutil
 from time import sleep
 import json 
 from datetime import datetime
-import sqlite3
 import ctypes
 import ctypes.wintypes
-from pathlib import Path
 
+from dbHelper import get_connection, initialize_database
 from ML.predict import predict_category
 
 FULLSCREEN_THRESHOLD = 20  # seconds
 NORMAL_THRESHOLD = 10  # seconds
-PROJECT_ROOT = Path(__file__).resolve().parent
-LOGS_DIR = PROJECT_ROOT / "logs"
-DB_PATH = LOGS_DIR / "activity_log.db"
-
-def get_connection():
-    LOGS_DIR.mkdir(parents=True, exist_ok=True)
-    return sqlite3.connect(DB_PATH)
-
-
-def initialize_database():
-    with get_connection() as conn:
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS activity_log (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                app TEXT NOT NULL,
-                title TEXT NOT NULL,
-                start TEXT NOT NULL,
-                end TEXT NOT NULL,
-                duration_seconds REAL NOT NULL,
-                idle_time REAL NOT NULL
-            )
-            """
-        )
-        conn.commit()
 
 def insert_log_entry(entry):
     with get_connection() as conn:
@@ -118,16 +92,16 @@ def track_active_windows():
             if app != last_app or title != last_title:
                 now = datetime.now()
                 if last_app is not None:
+                    duration_seconds = (now - last_start_time).total_seconds()
                     entry = {
                         "app": last_app,
                         "title": last_title,
                         "start": last_start_time.isoformat(),
                         "end": now.isoformat(),
-                        "duration_seconds": (now - last_start_time).total_seconds(),
-                        "idle_time": idle_time
+                        "duration_seconds": duration_seconds,
+                        "idle_time": min(idle_time, duration_seconds),
                     }
                 write_log(entry)
-                # print("LOGGED:", entry)
                 
                 # update new session
                 last_app, last_title = app, title
@@ -160,7 +134,6 @@ def write_log(entry):
         )
     )
     
-
 
 initialize_database()
 track_active_windows()
